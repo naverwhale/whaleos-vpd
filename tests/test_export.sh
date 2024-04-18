@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2017 The Chromium OS Authors. All rights reserved.
+# Copyright 2017 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
@@ -14,7 +14,7 @@
 # copyright notice, this list of conditions and the following disclaimer
 # in the documentation and/or other materials provided with the
 # distribution.
-#    * Neither the name of Google Inc. nor the names of its
+#    * Neither the name of Google LLC nor the names of its
 # contributors may be used to endorse or promote products derived from
 # this software without specific prior written permission.
 #
@@ -37,9 +37,10 @@ set -e
 
 . ./functions.sh
 
-BINARY="../vpd"
+# shellcheck disable=SC2154 # exported by caller
+BINARY="${OUT}/vpd"
 TMP_DIR=$(mktemp -d)
-BIOS_PACKS="vpd_0x600.tbz gVpdInfo.tbz"
+BIOS_PACKS=( vpd_0x600.tbz gVpdInfo.tbz )
 BIOS="${TMP_DIR}/empty.vpd"
 
 test_image() {
@@ -67,15 +68,18 @@ test_image() {
   args="${args} -p 2 -s 'c=ccc'"
   args="${args} -p 9 -s 'd=ddd'"
   args="${args} -p 0 -s 'e=eee'"
+  args="${args} -p 20 -s 'f=double\"quote'"
+  args="${args} -s $'g=\\'\\'\\'\\''"
   args="${args} -l --sh"
   RUN "${VPD_OK}" "${BINARY} ${args} > ${TMP_DIR}/import.sh"
   RUN 0 "sh ${TMP_DIR}/import.sh"
-  RUN "${VPD_OK}"
   RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -g a" "aaa"
   RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -g b" $'b\'b\nb'
   RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -g c" "cc"
   RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -g d" "ddd"
   RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -g e" ""
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -g f" "double\"quote"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -g g" "''''"
 
   #
   # export to null-terminated format
@@ -88,13 +92,13 @@ test_image() {
 }
 
 main() {
-  for pack in $BIOS_PACKS
+  for pack in "${BIOS_PACKS[@]}"
   do
-    test_image "$pack"
+    test_image "${pack}"
   done
 }
 
 main
-clean_up
+clean_up "${TMP_DIR}"
 
 exit 0

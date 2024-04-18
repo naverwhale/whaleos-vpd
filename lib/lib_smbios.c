@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Google Inc.  All Rights Reserved.
+ * Copyright 2010 Google LLC
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@
 #include <ctype.h>
 #include <uuid/uuid.h>
 
-#include "lib/math.h"
+#include "lib/checksum.h"
 #include "lib/lib_smbios.h"
 #include "lib/vpd.h"
 #include "lib/vpd_tables.h"

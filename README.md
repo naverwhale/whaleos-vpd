@@ -1,3 +1,5 @@
+This repo for WhaleOS is based on https://chromium.googlesource.com/chromiumos/platform/vpd/.
+
 # ChromeOS Vital Product Data (VPD) Binary Blob 2.0
 
 [TOC]
@@ -106,9 +108,10 @@ the comment line preceding the example:
   # Dump RW_VPD partition
   % vpd -l -i "RW_VPD"
 
-  # Rather using flashrom to access flash (usually slow), access a temp file.
-  % flashrom -r vpd.bin
-  % vpd -f vpd.bin -l
+  # Rather using access flash each time (usually slow), instead
+  # dump a cached image to access.
+  % futility read bios.bin
+  % vpd -f bios.bin -l
 
   # Add a new key-value pair, which value is a string (-s)
   % vpd -f vpd.bin -s "SKU"="0123456789ABCDEF"

@@ -1,0 +1,93 @@
+# Copyright 2023 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//common-mk/pkg_config.gni")
+
+group("all") {
+  deps = [ ":vpd" ]
+  if (!use.cros_host) {
+    deps += [ ":install_sbin_scripts" ]
+  }
+  if (!use.cros_host && !use.systemd) {
+    deps += [ ":install_init" ]
+  }
+  if (use.test) {
+    deps += [ ":vpd_c_test" ]
+  }
+}
+
+vpd_c_sources = [
+  "lib/checksum.c",
+  "lib/flashrom.c",
+  "lib/lib_smbios.c",
+  "lib/lib_vpd.c",
+  "lib/vpd_container.c",
+  "lib/vpd_decode.c",
+  "lib/vpd_encode.c",
+]
+
+executable("vpd") {
+  sources = [ "vpd.cc" ] + vpd_c_sources
+  configs += [
+    ":target_defaults",
+    ":vpd_c",
+  ]
+  include_dirs = [
+    "include",
+    "include/lib",
+  ]
+  install_path = "sbin"
+}
+
+config("vpd_c") {
+  cflags = [
+    "-Wno-implicit-fallthrough",
+    "-DVPD_VERSION=\" : version : " + getenv("PVR") + "\"",
+  ]
+}
+
+install_config("install_init") {
+  sources = [
+    "init/vpd-icc.conf",
+    "init/vpd-log.conf",
+  ]
+  install_path = "/etc/init"
+}
+
+install_config("install_sbin_scripts") {
+  sources = [
+    "util/dump_vpd_log",
+    "util/update_rw_vpd",
+    "util/vpd_get_value",
+    "util/vpd_icc",
+  ]
+  install_path = "/usr/sbin"
+  type = "executable"
+}
+
+default_pkg_deps = [
+  "fmap",
+  "libchrome",
+  "uuid",
+]
+
+pkg_config("target_defaults") {
+  pkg_deps = default_pkg_deps
+}
+
+if (use.test) {
+  executable("vpd_c_test") {
+    sources = [ "lib/lib_vpd_test.c" ] + vpd_c_sources
+    configs += [
+      ":target_defaults",
+      ":vpd_c",
+    ]
+    include_dirs = [
+      "include",
+      "include/lib",
+    ]
+    run_test = true
+    deps = [ "//common-mk/testrunner" ]
+  }
+}

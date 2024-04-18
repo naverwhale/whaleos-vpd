@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
+ * Copyright 2013 The ChromiumOS Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  *
@@ -10,6 +10,7 @@
 #include <string.h>
 #include "lib/lib_vpd.h"
 
+#ifndef NDEBUG
 enum {
   TEST_OK = 0,
   TEST_FAIL = 1,
@@ -204,6 +205,8 @@ int testContainer() {
   assert(sizeof(expected) == generated);
   assert(!memcmp(expected, buf, generated));
 
+  destroyContainer(&container);
+
   printf("[PASS] %s()\n", __FUNCTION__);
   return TEST_OK;
 }
@@ -233,6 +236,8 @@ int testDecodeVpdString() {
   assert(sizeof(expected) == encode_consumed);
   assert(!memcmp(expected, buf, encode_consumed));
 
+  destroyContainer(&container);
+
   printf("[PASS] %s()\n", __FUNCTION__);
   return TEST_OK;
 }
@@ -247,6 +252,8 @@ int testDeleteEmptyContainer() {
   /* still good for add */
   setString(&container, CU8"FIRST", CU8"1", 8);
   assert(NULL != findString(&container, CU8"FIRST", NULL));
+
+  destroyContainer(&container);
 
   printf("[PASS] %s()\n", __FUNCTION__);
   return TEST_OK;
@@ -267,6 +274,8 @@ int testDeleteFirstOfOne() {
   /* still good for add */
   setString(&container, CU8"SECOND", CU8"2", 12);
   assert(NULL != findString(&container, CU8"SECOND", NULL));
+
+  destroyContainer(&container);
 
   printf("[PASS] %s()\n", __FUNCTION__);
   return TEST_OK;
@@ -290,6 +299,8 @@ int testDeleteFirstOfTwo() {
   setString(&container, CU8"FIRST", CU8"1", 9);
   assert(NULL != findString(&container, CU8"FIRST", NULL));
 
+  destroyContainer(&container);
+
   printf("[PASS] %s()\n", __FUNCTION__);
   return TEST_OK;
 }
@@ -311,6 +322,8 @@ int testDeleteSecondOfTwo() {
   /* still good for add */
   setString(&container, CU8"SECOND", CU8"2", 5);
   assert(NULL != findString(&container, CU8"SECOND", NULL));
+
+  destroyContainer(&container);
 
   printf("[PASS] %s()\n", __FUNCTION__);
   return TEST_OK;
@@ -357,13 +370,16 @@ int testDeleteSecondOfThree() {
   setString(&container, CU8"FIFTH", CU8"5", 5);
   assert(NULL != findString(&container, CU8"FIFTH", NULL));
 
+  destroyContainer(&container);
+
   printf("[PASS] %s()\n", __FUNCTION__);
   return TEST_OK;
 }
-
+#endif
 
 
 int main() {
+#ifndef NDEBUG
   assert(TEST_OK == testEncodeLen());
   assert(TEST_OK == testDecodeLen());
   assert(TEST_OK == testEncodeVpdString());
@@ -378,5 +394,6 @@ int main() {
   assert(TEST_OK == testDeleteSecondOfThree());
 
   printf("SUCCESS!\n");
+#endif
   return 0;
 }

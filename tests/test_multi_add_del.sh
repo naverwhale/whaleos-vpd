@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 #
-# Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
+# Copyright 2013 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
@@ -14,7 +14,7 @@
 # copyright notice, this list of conditions and the following disclaimer
 # in the documentation and/or other materials provided with the
 # distribution.
-#    * Neither the name of Google Inc. nor the names of its
+#    * Neither the name of Google LLC nor the names of its
 # contributors may be used to endorse or promote products derived from
 # this software without specific prior written permission.
 #
@@ -37,69 +37,70 @@ set -e
 
 . ./functions.sh
 
-BINARY="../vpd"
+# shellcheck disable=SC2154 # exported by caller
+BINARY="${OUT}/vpd"
 TMP_DIR=$(mktemp -d)
-BIOS_PACKS="vpd_0x600.tbz gVpdInfo.tbz"
-BIOS="$TMP_DIR/empty.vpd"
+BIOS_PACKS=( vpd_0x600.tbz gVpdInfo.tbz )
+BIOS="${TMP_DIR}/empty.vpd"
 
 test_image() {
   local pack="$1"
 
-  echo "  testing '$pack' ..."
-  unpack_bios $pack $TMP_DIR
+  echo "  testing '${pack}' ..."
+  unpack_bios "${pack}" "${TMP_DIR}"
 
   #
   # Add 3 strings one time.
   # Expect SUCCESS
-  RUN $VPD_OK "$BINARY -f $BIOS -s K0=D0 -s K1=D1 -s K2=D2"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -s K0=D0 -s K1=D1 -s K2=D2"
 
   #
   # Add one more string and replace one.
   # Expect SUCCESS
-  RUN $VPD_OK "$BINARY -f $BIOS -s K3=D3 -s K1=d1"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -s K3=D3 -s K1=d1"
   # Make sure K3 has been added
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep K3"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep K3"
   # Make sure K1 has been replaced
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep K1 | grep d1"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep K1 | grep d1"
 
   #
   # Test -d K99.
   # expect error because non-existed key
-  RUN $VPD_ERR_PARAM "$BINARY -f $BIOS -d K99"
+  RUN "${VPD_ERR_PARAM}" "${BINARY} -f ${BIOS} -d K99"
 
   #
   # Test -d K99 and -d K2.
   # expect error because not all key is found.
-  RUN $VPD_ERR_PARAM "$BINARY -f $BIOS -d K99 -d K2"
+  RUN "${VPD_ERR_PARAM}" "${BINARY} -f ${BIOS} -d K99 -d K2"
   # Make sure K2 is still existing.
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep K2"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep K2"
 
   #
   # Delete single.
   # expect SUCCESS
-  RUN $VPD_OK "$BINARY -f $BIOS -d K2"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -d K2"
 
   #
   # Delete remaining string (K0, K1, K3)
   # expect SUCCESS and nothing left.
-  RUN $VPD_OK "$BINARY -f $BIOS -d K1 -d K0 -d K3"
-  RUN $GREP_FAIL "$BINARY -f $BIOS -l | grep -e '.*'"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -d K1 -d K0 -d K3"
+  RUN "${GREP_FAIL}" "${BINARY} -f ${BIOS} -l | grep -e '.*'"
 
   #
   # -s -s, then -d -d
   # expect SUCCESS and nothing left.
-  RUN $VPD_OK "$BINARY -f $BIOS -s K98 -s K99 -d K98 -d K99"
-  RUN $GREP_FAIL "$BINARY -f $BIOS -l | grep -e '.*'"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -s K98 -s K99 -d K98 -d K99"
+  RUN "${GREP_FAIL}" "${BINARY} -f ${BIOS} -l | grep -e '.*'"
 }
 
 main() {
-  for pack in $BIOS_PACKS
+  for pack in "${BIOS_PACKS[@]}"
   do
-    test_image "$pack"
+    test_image "${pack}"
   done
 }
 
 main
-clean_up
+clean_up "${TMP_DIR}"
 
 exit 0

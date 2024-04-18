@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 #
-# Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
+# Copyright 2013 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
@@ -14,7 +14,7 @@
 # copyright notice, this list of conditions and the following disclaimer
 # in the documentation and/or other materials provided with the
 # distribution.
-#    * Neither the name of Google Inc. nor the names of its
+#    * Neither the name of Google LLC nor the names of its
 # contributors may be used to endorse or promote products derived from
 # this software without specific prior written permission.
 #
@@ -37,71 +37,72 @@ set -e
 
 . ./functions.sh
 
-BINARY="../vpd"
+# shellcheck disable=SC2154 # exported by caller
+BINARY="${OUT}/vpd"
 TMP_DIR=$(mktemp -d)
-BIOS_PACKS="vpd_0x600.tbz gVpdInfo.tbz"
-BIOS="$TMP_DIR/empty.vpd"
+BIOS_PACKS=( vpd_0x600.tbz gVpdInfo.tbz )
+BIOS="${TMP_DIR}/empty.vpd"
 
 test_image() {
   local pack="$1"
 
-  echo "  testing '$pack' ..."
-  unpack_bios $pack $TMP_DIR
+  echo "  testing '${pack}' ..."
+  unpack_bios "${pack}" "${TMP_DIR}"
 
   #
   # Test -s (without parameter) case.
   # Expect error for invalid parameter.
-  RUN $VPD_ERR_SYNTAX "$BINARY -f $BIOS -s"
+  RUN "${VPD_ERR_SYNTAX}" "${BINARY} -f ${BIOS} -s"
 
   #
   # Test -s (empty string) case.
   # Expect error for invalid parameter.
-  RUN $VPD_ERR_SYNTAX "$BINARY -f $BIOS -s ''"
+  RUN "${VPD_ERR_SYNTAX}" "${BINARY} -f ${BIOS} -s ''"
 
   #
   # Test -s= (empty key) case.
   # Expect error for invalid parameter.
-  RUN $VPD_ERR_SYNTAX "$BINARY -f $BIOS -s="
+  RUN "${VPD_ERR_SYNTAX}" "${BINARY} -f ${BIOS} -s="
 
   #
   # Test -s=DEF (empty key) case.
   # Expect error for invalid parameter.
-  RUN $VPD_ERR_SYNTAX "$BINARY -f $BIOS -s=DEF"
+  RUN "${VPD_ERR_SYNTAX}" "${BINARY} -f ${BIOS} -s=DEF"
 
   #
   # Test -sABC= (empty value) case.
   # Expect SUCCESS
-  RUN $VPD_OK "$BINARY -f $BIOS -sABC="
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -sABC="
   # Make sure ABC has been set
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep ABC"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep ABC"
 
   #
   # Test -sABC=DEF case.
   # Expect SUCCESS
-  RUN $VPD_OK "$BINARY -f $BIOS -sABC=DEF"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -sABC=DEF"
   # Make sure ABC has been set
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep DEF"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep DEF"
 
   #
   # Test -d DEF case.
   # expect error because non-existed key
-  RUN $VPD_ERR_PARAM "$BINARY -f $BIOS -d DEF"
+  RUN "${VPD_ERR_PARAM}" "${BINARY} -f ${BIOS} -d DEF"
 
   #
   # Test -d ABC case.
   # expect SUCCESS and nothing left.
-  RUN $VPD_OK "$BINARY -f $BIOS -d ABC"
-  RUN $GREP_FAIL "$BINARY -f $BIOS -l | grep -e '.*'"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -d ABC"
+  RUN "${GREP_FAIL}" "${BINARY} -f ${BIOS} -l | grep -e '.*'"
 }
 
 main() {
-  for pack in $BIOS_PACKS
+  for pack in "${BIOS_PACKS[@]}"
   do
-    test_image "$pack"
+    test_image "${pack}"
   done
 }
 
 main
-clean_up
+clean_up "${TMP_DIR}"
 
 exit 0

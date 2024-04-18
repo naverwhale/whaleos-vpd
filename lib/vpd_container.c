@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 The Chromium OS Authors. All rights reserved.
+ * Copyright 2014 The ChromiumOS Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  *
@@ -200,6 +200,9 @@ static int callbackDecodeToContainer(const uint8_t *key,
   key_string[key_len] = '\0';
   value_string[value_len] = '\0';
   setString(container, key_string, value_string, value_len);
+  /* setString() makes its own copies. */
+  free(key_string);
+  free(value_string);
   return VPD_DECODE_OK;
 }
 

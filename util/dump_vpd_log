@@ -1,6 +1,6 @@
 #!/bin/dash
 #
-# Copyright (c) 2012 The Chromium OS Authors. All rights reserved.
+# Copyright 2012 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
@@ -12,17 +12,18 @@
 #
 
 # Load shflags, define script flags.
+# shellcheck source=../../../scripts/lib/shflags/shflags
 . /usr/share/misc/shflags
 
-DEFINE_boolean "clean" ${FLAGS_FALSE} \
+DEFINE_boolean "clean" "${FLAGS_FALSE}" \
   "Clean VPD cache and output files, then quit."
-DEFINE_boolean "force" ${FLAGS_FALSE} \
+DEFINE_boolean "force" "${FLAGS_FALSE}" \
   "Force regeneration of VPD cache and output files."
-DEFINE_boolean "full" ${FLAGS_FALSE} \
+DEFINE_boolean "full" "${FLAGS_FALSE}" \
   "Generate full output, without filtering."
-DEFINE_boolean "stdout" ${FLAGS_FALSE} \
+DEFINE_boolean "stdout" "${FLAGS_FALSE}" \
   "Dump VPD to standard output, instead of a file."
-DEFINE_boolean "debug" ${FLAGS_FALSE} \
+DEFINE_boolean "debug" "${FLAGS_FALSE}" \
   "Debug mode."
 
 # Parse arguments.
@@ -84,24 +85,77 @@ atomic_move() {
 }
 
 flash_partial() {
-  flashrom -p host -i FMAP -i RO_VPD -i RW_VPD -r "$@"
+  flashrom -p internal -i FMAP -i RO_VPD -i RW_VPD -r "$@"
 }
 
 flash_whole() {
-  flashrom -p host -r "$@"
+  flashrom -p internal -r "$@"
+}
+
+# Check if the cache file is valid and remove it if not.
+validate_cache_file() {
+  # It is too costly to read flashrom in Whalebook.
+  return
+
+  # Cache does not exist, nothing to validate.
+  if [ ! -f "${CACHE_FILE}" ]; then
+    return
+  fi
+
+  # File should never be empty.
+  if [ ! -s "${CACHE_FILE}" ]; then
+    rm -f "${CACHE_FILE}"
+  fi
+
+  # Validate file format.
+  # This also detects error lines.
+  if grep -v -q '^".*"=".*"$' "${CACHE_FILE}"; then
+    rm -f "${CACHE_FILE}"
+    return
+  fi
+}
+
+# Generates a temporary file used for caching the results of flashrom across
+# subsequent invocations of the vpd utility within this script.
+# The filename is filled into ${BIOS_TMP_FILE}. Nobody else but this function
+# should modify the variable.
+generate_bios_tmp_file() {
+  # Bios temp file has already been created and ${BIOS_TMP_FILE} has it's name.
+  # Do nothing.
+  if [ -n "${BIOS_TMP_FILE}" ]; then
+    return
+  fi
+
+  BIOS_TMP_FILE="$(mktemp)"
+  add_temp_files "${BIOS_TMP_FILE}"
+
+  if [ -n "${debug_log}" ]; then
+    echo "-------------------" "$(date)" >>"${debug_log}"
+    if ! flash_partial "${BIOS_TMP_FILE}" -V -V -V >>"${debug_log}" 2>&1; then
+      if ! flash_whole "${BIOS_TMP_FILE}" -V -V -V >>"${debug_log}" 2>&1; then
+        exit 1
+      fi
+    fi
+  else
+    # flashrom may print messages on stdout (for example, "Reading flash...
+    # SUCCESS") so we do want to prevent that for --stdout.
+    if ! flash_partial "${BIOS_TMP_FILE}" 1>&2; then
+      if ! flash_whole "${BIOS_TMP_FILE}" 1>&2; then
+        exit 1
+      fi
+    fi
+  fi
 }
 
 generate_cache_file() {
+  # It is too costly to read flashrom in Whalebook.
   echo "" > "${CACHE_FILE}"
 
   if [ -f "${CACHE_FILE}" ]; then
     return
   fi
-  # A temporary file used for caching the results of flashrom across subsequent
-  # invocations of the vpd utility within this script.
-  local bios_tmp
-  bios_tmp="$(mktemp)"
-  add_temp_files "${bios_tmp}"
+
+  generate_bios_tmp_file
 
   # The temporary file is under same folder as ${CACHE_FILE} to ensure that
   # renaming (mv) is atomic.
@@ -112,27 +166,17 @@ generate_cache_file() {
 
   # If the file exists, but was not regular.
   rm -f "${CACHE_FILE}"
-  if [ -n "${debug_log}" ]; then
-    echo "-------------------" "$(date)" >>"${debug_log}"
-    flash_partial "${bios_tmp}" -V -V -V >>"${debug_log}" 2>&1 ||
-      flash_whole "${bios_tmp}" -V -V -V >>"${debug_log}" 2>&1 ||
-      exit 1
-  else
-    # flashrom may print messages on stdout (for example, "Reading flash...
-    # SUCCESS") so we do want to prevent that for --stdout.
-    flash_partial "${bios_tmp}" 1>&2 ||
-      flash_whole "${bios_tmp}" 1>&2 ||
-      exit 1
-  fi
 
-  generate_full_text "${bios_tmp}" "RO_VPD" "${cache_tmp}"
-  echo "\"${RO_RW_DELIMITER_KEY}\""="\"${RO_RW_DELIMITER_VALUE}\"" \
+  generate_full_text "${BIOS_TMP_FILE}" "RO_VPD" "${cache_tmp}"
+  echo "\"${RO_RW_DELIMITER_KEY}\"=\"${RO_RW_DELIMITER_VALUE}\"" \
     >>"${cache_tmp}"
-  generate_full_text "${bios_tmp}" "RW_VPD" "${cache_tmp}"
+  generate_full_text "${BIOS_TMP_FILE}" "RW_VPD" "${cache_tmp}"
   atomic_move "${cache_tmp}" "${CACHE_FILE}"
 
-  # Remove existing filtered output file, forcing it to be regenerated.
+  # Remove existing filtered and status output files, forcing them to be
+  # regenerated.
   rm -f "${FILTERED_FILE}"
+  rm -f "${STATUS_FILE}"
 }
 
 # Generate the coupon code file containing cached VPD ECHO attributes.
@@ -188,8 +232,8 @@ generate_filtered_file() {
 
   # If the file exists, but was not regular.
   rm -f "${FILTERED_FILE}"
-  generate_filtered_file_contents_from_vpd "$tmpfile"
-  generate_filtered_file_contents_from_ro_vpd "$tmpfile"
+  generate_filtered_file_contents_from_vpd "${tmpfile}"
+  generate_filtered_file_contents_from_ro_vpd "${tmpfile}"
   set_world_readable "${tmpfile}"
   atomic_move "${tmpfile}" "${FILTERED_FILE}"
 }
@@ -204,10 +248,12 @@ generate_filtered_file_contents_from_vpd() {
     block_devmode \
     check_enrollment \
     customization_id \
+    display_profiles \
     initial_locale \
     initial_timezone \
     keyboard_layout \
     model_name \
+    oem_device_requisition \
     panel_backlight_max_nits \
     "Product_S\/N" \
     region \
@@ -239,6 +285,50 @@ generate_filtered_file_contents_from_ro_vpd() {
 # $3: file name to append output
 generate_full_text() {
   (vpd -f "$1" -i "$2" -l || echo "# $2 execute error.") >>"$3"
+}
+
+# Generate status file contents from VPD utility.
+generate_status_file() {
+  if [ -f "${STATUS_FILE}" ]; then
+    return
+  fi
+
+  generate_bios_tmp_file
+
+  # The temporary file is under same folder as ${STATUS_FILE} to ensure that
+  # renaming (mv) is atomic.
+  local status_tmp
+  status_tmp="$(mktemp --tmpdir="$(dirname "${STATUS_FILE}")" \
+                     status.txt.tmp.XXXXXXXXXX)"
+  add_temp_files "${status_tmp}"
+
+  # If the file exists, but was not regular.
+  rm -f "${STATUS_FILE}"
+
+  generate_status_file_from_vpd "${BIOS_TMP_FILE}" "RO_VPD" "${status_tmp}"
+  generate_status_file_from_vpd "${BIOS_TMP_FILE}" "RW_VPD" "${status_tmp}"
+  set_world_readable "${status_tmp}"
+  atomic_move "${status_tmp}" "${STATUS_FILE}"
+}
+
+# Invoke the VPD utility to generate file with its status.
+#
+# $1: BIOS filename
+# $2: partition name
+# $3: file name to append output
+generate_status_file_from_vpd() {
+  local bios_filename="$1"
+  local vpd_partition="$2"
+  local output_filename="$3"
+
+  local vpd_status
+  vpd_status=$(
+    set +e
+    vpd -f "${bios_filename}" -i "${vpd_partition}" >&2
+    echo "$?"
+  )
+
+  echo "\"${vpd_partition}_status\"=\"${vpd_status}\"" >> "${output_filename}"
 }
 
 # Migrate the legacy file under encrypted partition to be a symlink pointing to
@@ -283,7 +373,7 @@ add_temp_files() {
 # Removes all temporary files.
 cleanup() {
   if [ -n "${TEMP_FILES}" ]; then
-    # TEMP_FILES is a list so we don't quote it.
+    # shellcheck disable=SC2086 # TEMP_FILES is a list so we don't quote it.
     rm -rf ${TEMP_FILES}
     TEMP_FILES=""
   fi
@@ -347,7 +437,10 @@ main() {
   FILTERED_FILE="${CACHE_DIR}/filtered.txt"
   FILTERED_LINK="/var/log/vpd_2.0.txt"
 
-  if [ "${FLAGS_debug}" -eq ${FLAGS_TRUE} ]; then
+  # Location for stroring VPD status.
+  STATUS_FILE="${CACHE_DIR}/status.txt"
+
+  if [ "${FLAGS_debug}" -eq "${FLAGS_TRUE}" ]; then
     debug_log="/tmp/dump_vpd_log.debug"
   fi
 
@@ -360,19 +453,19 @@ main() {
   done
 
   # Remove output files if --clean or --force flagged.
-  if [ "${FLAGS_clean}" -eq ${FLAGS_TRUE} ] || \
-      [ "${FLAGS_force}" -eq ${FLAGS_TRUE} ]; then
+  if [ "${FLAGS_clean}" -eq "${FLAGS_TRUE}" ] || \
+      [ "${FLAGS_force}" -eq "${FLAGS_TRUE}" ]; then
     rm -f "${FILTERED_FILE}" "${CACHE_FILE}" "${ECHO_COUPON_FILE}" \
-          "${FILTERED_LINK}" "${CACHE_LINK}"
+          "${FILTERED_LINK}" "${CACHE_LINK}" "${STATUS_FILE}"
 
     # If --clean was flagged, we're done.
-    if [ "${FLAGS_clean}" -eq ${FLAGS_TRUE} ]; then
+    if [ "${FLAGS_clean}" -eq "${FLAGS_TRUE}" ]; then
       exit 0
     fi
   fi
 
-  if [ "${FLAGS_stdout}" -eq ${FLAGS_FALSE} ] &&
-     [ "${FLAGS_full}" -eq ${FLAGS_TRUE} ]; then
+  if [ "${FLAGS_stdout}" -eq "${FLAGS_FALSE}" ] &&
+     [ "${FLAGS_full}" -eq "${FLAGS_TRUE}" ]; then
     # --full must only be used with --stdout, to prevent accidental dumping of
     # sensitive VPD info into a world-readable file. To be used as follows:
     #
@@ -382,13 +475,17 @@ main() {
     exit 1
   fi
 
+  # Validate cache.
+  validate_cache_file
+
   # Generate missing files.
   generate_cache_file
   generate_filtered_file
+  generate_status_file
 
   # Print to stdout if needed.
-  if [ "${FLAGS_stdout}" -eq ${FLAGS_TRUE} ]; then
-    if [ "${FLAGS_full}" -eq ${FLAGS_TRUE} ]; then
+  if [ "${FLAGS_stdout}" -eq "${FLAGS_TRUE}" ]; then
+    if [ "${FLAGS_full}" -eq "${FLAGS_TRUE}" ]; then
       cat "${CACHE_FILE}"
     else
       cat "${FILTERED_FILE}"

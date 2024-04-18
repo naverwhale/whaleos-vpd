@@ -15,24 +15,34 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  *
- * Ported from mosys project (http://code.google.com/p/mosys/)
+ * Ported from mosys project (http://code.google.com/p/mosys/).
  */
 
-#ifndef __LIB_LIB_SMBIOS__
-#define __LIB_LIB_SMBIOS__
+#ifndef INCLUDE_LIB_CHECKSUM_H_
+#define INCLUDE_LIB_CHECKSUM_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 #include <inttypes.h>
-#include "lib/vpd_tables.h"
+#include <sys/types.h>
 
-struct vpd_entry *vpd_create_eps(unsigned short structure_table_len,
-                                 unsigned short num_structures,
-                                 uint32_t eps_base);
-int vpd_append_type241(uint16_t handle, uint8_t **buf,
-                       size_t len, const char *uuid, uint32_t offset,
-                       uint32_t size, const char *vendor,
-                       const char *desc, const char *variant);
-int vpd_type241_size(struct vpd_header *header);
-int vpd_append_type127(uint16_t handle,
-                       uint8_t **buf, size_t len);
+/*
+ * zero8_csum - Calculates 8-bit zero-sum checksum
+ *
+ * @buf:  input buffer
+ * @len:  length of buffer
+ *
+ * The summation of the bytes in the array and the csum will equal zero
+ * for 8-bit data size.
+ *
+ * returns checksum to indicate success
+ */
+extern uint8_t zero8_csum(uint8_t* buf, size_t len);
 
-#endif  /* __LIB_LIB_SMBIOS__ */
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+
+#endif /* INCLUDE_LIB_CHECKSUM_H_ */

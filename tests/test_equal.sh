@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 #
-# Copyright (c) 2014 The Chromium OS Authors. All rights reserved.
+# Copyright 2014 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
@@ -14,7 +14,7 @@
 # copyright notice, this list of conditions and the following disclaimer
 # in the documentation and/or other materials provided with the
 # distribution.
-#    * Neither the name of Google Inc. nor the names of its
+#    * Neither the name of Google LLC nor the names of its
 # contributors may be used to endorse or promote products derived from
 # this software without specific prior written permission.
 #
@@ -37,52 +37,53 @@ set -e
 
 . ./functions.sh
 
-BINARY="../vpd"
+# shellcheck disable=SC2154 # exported by caller
+BINARY="${OUT}/vpd"
 TMP_DIR=$(mktemp -d)
-BIOS_PACKS="vpd_0x600.tbz gVpdInfo.tbz"
-BIOS="$TMP_DIR/empty.vpd"
+BIOS_PACKS=( vpd_0x600.tbz gVpdInfo.tbz )
+BIOS="${TMP_DIR}/empty.vpd"
 
 test_image() {
   local pack="$1"
 
-  echo "  testing '$pack' ..."
-  unpack_bios $pack $TMP_DIR
+  echo "  testing '${pack}' ..."
+  unpack_bios "${pack}" "${TMP_DIR}"
 
   #
   # Test only '=' in string
   # Expect = is saved successfully
-  RUN $VPD_OK "$BINARY -f $BIOS -s KEY='='"
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep '\"KEY\"=\"=\"'"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -s KEY='='"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep '\"KEY\"=\"=\"'"
 
   #
   # '=' in the middle of string
-  RUN $VPD_OK "$BINARY -f $BIOS -s KEY='123=456'"
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep '\"123=456\"'"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -s KEY='123=456'"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep '\"123=456\"'"
 
   #
   # '=' in the begin of string
-  RUN $VPD_OK "$BINARY -f $BIOS -s KEY='=5566'"
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep '\"=5566\"'"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -s KEY='=5566'"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep '\"=5566\"'"
 
   #
   # '=' in the end of string
-  RUN $VPD_OK "$BINARY -f $BIOS -s KEY='183='"
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep '\"183=\"'"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -s KEY='183='"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep '\"183=\"'"
 
   #
   # Multiple '=' in the string
-  RUN $VPD_OK "$BINARY -f $BIOS -s KEY='==democracy=at=4am=='"
-  RUN $GREP_OK "$BINARY -f $BIOS -l | grep '\"==democracy=at=4am==\"'"
+  RUN "${VPD_OK}" "${BINARY} -f ${BIOS} -s KEY='==democracy=at=4am=='"
+  RUN "${GREP_OK}" "${BINARY} -f ${BIOS} -l | grep '\"==democracy=at=4am==\"'"
 }
 
 main() {
-  for pack in $BIOS_PACKS
+  for pack in "${BIOS_PACKS[@]}"
   do
-    test_image "$pack"
+    test_image "${pack}"
   done
 }
 
 main
-clean_up
+clean_up "${TMP_DIR}"
 
 exit 0

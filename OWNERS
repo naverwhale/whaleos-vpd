@@ -3,3 +3,6 @@ include chromiumos/platform/factory:/OWNERS
 
 # hungte for underlying data structure and layout.
 hungte@chromium.org
+
+# For the library/tooling support.
+briannorris@chromium.org

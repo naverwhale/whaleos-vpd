@@ -1,6 +1,5 @@
 /*
- * Copyright 2010, Google Inc.
- * All rights reserved.
+ * Copyright 2010 Google LLC
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -12,7 +11,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *    * Neither the name of Google Inc. nor the names of its
+ *    * Neither the name of Google LLC nor the names of its
  * contributors may be used to endorse or promote products derived from
  * this software without specific prior written permission.
  *
@@ -40,7 +39,7 @@ static uint8_t flashrom_cmd[] = "flashrom";
  *   bus=spi: The VPD data are stored in BIOS flash, which is attached
  *            to the SPI bus.
  */
-static uint8_t flashrom_arguments[] = " -p host ";
+static uint8_t flashrom_arguments[] = " -p internal ";
 
 int flashromFullRead(const char* full_file) {
   char cmd[CMD_BUF_SIZE];
